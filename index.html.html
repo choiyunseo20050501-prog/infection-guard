@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>격리 판단 챗봇 | 병동 감염관리</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
+<style>
+  :root{
+    --teal:#0F8F80;        /* 포인트 컬러 (청록) */
+    --teal-dark:#0B7569;
+    --teal-light:#E7F5F3;
+    --red:#DC2626;         /* 중요 표시 */
+    --red-light:#FEF2F2;
+    --text:#111111;        /* 기본 글씨 */
+    --sub:#444444;
+    --line:#E3E6EA;
+    --gray-bg:#F6F7F9;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Pretendard',-apple-system,'Malgun Gothic',sans-serif;background:#fff;color:var(--text);line-height:1.55}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 20px}
+
+  /* ===== 공통 상단 메뉴 ===== */
+  header{border-bottom:1px solid var(--line);background:#fff;position:sticky;top:0;z-index:10}
+  header .wrap{display:flex;align-items:center;justify-content:space-between;height:60px}
+  .logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:17px}
+  .logo-icon{width:30px;height:30px;border-radius:8px;background:var(--teal);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px}
+  nav{display:flex;gap:4px}
+  nav a{padding:7px 12px;border-radius:8px;font-size:14px;font-weight:600}
+  nav a:hover{background:var(--gray-bg)}
+  nav a.active{background:var(--teal);color:#fff}
+
+  /* ===== 상단 배너 ===== */
+  .hero{background:var(--teal);color:#fff;border-radius:16px;padding:28px 26px;margin:20px 0;display:flex;justify-content:space-between;align-items:center;gap:20px}
+  .hero .date{font-size:13px;font-weight:600;opacity:.95}
+  .hero h1{font-size:24px;font-weight:800;margin:6px 0 8px}
+  .hero p{font-size:14px;opacity:.95;max-width:560px}
+  .hero-btns{display:flex;flex-direction:column;gap:10px;min-width:220px}
+  .btn-white{background:#fff;color:var(--teal-dark);font-weight:700;border:none;border-radius:10px;padding:13px 18px;font-size:15px;cursor:pointer;font-family:inherit}
+  .btn-outline-white{background:transparent;color:#fff;font-weight:700;border:1.5px solid #fff;border-radius:10px;padding:11px 18px;font-size:14px;cursor:pointer;text-align:center;font-family:inherit}
+
+  /* ===== 단계 표시 ===== */
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px}
+  .step{border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:13px;font-weight:600;color:var(--sub)}
+  .step b{display:block;font-size:15px;color:var(--text)}
+  .step.on{border-color:var(--teal);background:var(--teal);color:#fff}
+  .step.on b{color:#fff}
+
+  /* ===== 섹션 제목 ===== */
+  .sec-title{font-size:17px;font-weight:800;border-left:4px solid var(--teal);padding-left:9px;margin:4px 0 4px}
+  .sec-desc{font-size:13px;color:var(--sub);margin-bottom:12px}
+
+  .layout{display:grid;grid-template-columns:1fr 300px;gap:20px;align-items:start}
+  .card{border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:18px;background:#fff}
+
+  /* 환자 정보 */
+  .form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  label.f{font-size:13px;font-weight:700;display:block;margin-bottom:5px}
+  input[type=text],input[type=number],select{width:100%;border:1px solid #CfD4DA;border-radius:8px;padding:9px 10px;font-size:14px;font-family:inherit;color:var(--text)}
+  input:focus,select:focus{outline:2px solid var(--teal);border-color:var(--teal)}
+
+  /* 체크 문항 */
+  .q{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:.15s}
+  .q:hover{background:var(--gray-bg)}
+  .q input{width:18px;height:18px;accent-color:var(--teal);flex-shrink:0}
+  .q .qt{flex:1;font-size:14px;font-weight:600}
+  .q .qs{font-size:12px;color:var(--sub);font-weight:500;display:block}
+  .q .pt{font-size:12px;font-weight:800;border-radius:20px;padding:3px 10px;background:var(--teal-light);color:var(--teal-dark);white-space:nowrap}
+  .q .pt.hi{background:var(--red-light);color:var(--red)}
+  .q.checked{border-color:var(--teal);background:var(--teal-light)}
+  .q .tag{font-size:12px;font-weight:700;white-space:nowrap}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:middle}
+
+  .btn-teal{background:var(--teal);color:#fff;border:none;border-radius:10px;padding:14px;font-size:16px;font-weight:700;width:100%;cursor:pointer;font-family:inherit}
+  .btn-teal:hover{background:var(--teal-dark)}
+  .btn-line{background:#fff;color:var(--text);border:1px solid #CfD4DA;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+
+  /* 우측 패널 */
+  .side{position:sticky;top:80px}
+  .score-box{background:var(--teal);color:#fff;border-radius:14px;padding:18px;margin-bottom:14px}
+  .score-box .lb{font-size:13px;font-weight:600}
+  .score-box .num{font-size:40px;font-weight:800;line-height:1.2}
+  .score-box .num small{font-size:16px}
+  .bar{height:8px;background:rgba(255,255,255,.35);border-radius:6px;margin:8px 0;overflow:hidden}
+  .bar i{display:block;height:100%;background:#fff;width:0;transition:.3s}
+  .score-box .msg{font-size:13px;font-weight:600}
+  .score-box.alert{background:var(--red)}
+  .guide table{width:100%;border-collapse:collapse;font-size:13px}
+  .guide td{padding:7px 4px;border-bottom:1px solid var(--line)}
+  .guide td:last-child{text-align:right;font-weight:800;white-space:nowrap}
+  .guide .rule{margin-top:12px;background:var(--red-light);border:1px solid #FCA5A5;color:var(--red);border-radius:8px;padding:10px;font-size:13px;font-weight:700}
+
+  /* 판정 결과 */
+  #result{display:none}
+  .verdict{border-radius:14px;padding:20px;border:2px solid var(--teal);margin-bottom:14px}
+  .verdict.danger{border-color:var(--red);background:var(--red-light)}
+  .verdict .lb{font-size:13px;font-weight:700;color:var(--sub)}
+  .verdict h2{font-size:22px;font-weight:800;margin:4px 0 10px}
+  .verdict.danger h2{color:var(--red)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+  .chip{background:var(--teal);color:#fff;font-size:13px;font-weight:700;border-radius:20px;padding:4px 12px}
+  .chip.red{background:var(--red)}
+  .act-table{width:100%;border-collapse:collapse;font-size:14px;margin-top:6px}
+  .act-table th{width:90px;text-align:left;background:var(--gray-bg);padding:9px 10px;border:1px solid var(--line);font-weight:700}
+  .act-table td{padding:9px 10px;border:1px solid var(--line)}
+  .warn{border:1px solid #FCA5A5;background:var(--red-light);color:var(--red);font-weight:700;border-radius:10px;padding:12px 14px;margin-top:12px;font-size:14px}
+  .sbar{background:var(--gray-bg);border:1px solid var(--line);border-radius:10px;padding:14px;font-size:14px;white-space:pre-wrap;margin:10px 0}
+  .row-btns{display:flex;gap:8px;flex-wrap:wrap}
+  .row-btns .btn-teal{width:auto;padding:10px 18px;font-size:14px}
+
+  /* 기록 테이블 */
+  .hist{width:100%;border-collapse:collapse;font-size:13px}
+  .hist th{background:var(--teal);color:#fff;padding:9px;text-align:left;font-weight:700}
+  .hist td{padding:9px;border-bottom:1px solid var(--line)}
+  .hist .red{color:var(--red);font-weight:800}
+  .empty{text-align:center;color:var(--sub);padding:18px}
+
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--teal);color:#fff;padding:11px 20px;border-radius:10px;font-weight:700;font-size:14px;opacity:0;transition:.3s;pointer-events:none}
+  .toast.show{opacity:1}
+  footer{border-top:1px solid var(--line);margin-top:30px;padding:18px 0;font-size:12px;color:var(--sub)}
+
+  @media(max-width:820px){
+    .layout{grid-template-columns:1fr}.side{position:static}
+    .hero{flex-direction:column;align-items:flex-start}.hero-btns{width:100%}
+    .form-grid{grid-template-columns:1fr 1fr}.steps{grid-template-columns:1fr 1fr}
+    nav{overflow-x:auto}
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== 공통 상단 메뉴 (팀 공통) ===== -->
+<header>
+  <div class="wrap">
+    <a href="index.html" class="logo"><span class="logo-icon">🏥</span>병동 감염관리</a>
+    <nav>
+      <a href="index.html">대시보드</a>
+      <a href="chatbot.html" class="active">격리 판단 챗봇</a>
+      <a href="ppe_quiz.html">보호구 점검</a>
+      <a href="protocol.html">격리 프로토콜</a>
+      <a href="education.html">감염관리 교육</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ===== 배너 ===== -->
+  <section class="hero">
+    <div>
+      <div class="date" id="today"></div>
+      <h1>신규 입원 환자 감염 위험 스크리닝</h1>
+      <p>다제내성균(MDRO) 위험 6문항과 증상 5문항을 사정하면, 선제 격리 여부와 전파경로별 주의 지침, SBAR 인계 문구를 바로 안내합니다.</p>
+    </div>
+    <div class="hero-btns">
+      <button class="btn-white" onclick="resetAll()">↺ 새 환자 스크리닝 시작</button>
+      <a class="btn-outline-white" href="#history">📋 오늘 스크리닝 기록 보기</a>
+    </div>
+  </section>
+
+  <!-- ===== 단계 ===== -->
+  <div class="steps">
+    <div class="step on" id="s1">STEP 1<b>환자 정보</b></div>
+    <div class="step" id="s2">STEP 2<b>다제내성균 위험</b></div>
+    <div class="step" id="s3">STEP 3<b>증상 사정</b></div>
+    <div class="step" id="s4">STEP 4<b>판정 · 인계</b></div>
+  </div>
+
+  <div class="layout">
+    <!-- ===== 왼쪽: 입력 ===== -->
+    <div>
+      <div class="card">
+        <div class="sec-title">① 환자 정보</div>
+        <div class="sec-desc">개인정보 보호를 위해 이름은 이니셜 또는 성(OO)으로만 입력하세요.</div>
+        <div class="form-grid">
+          <div><label class="f">환자명</label><input type="text" id="pName" placeholder="예: 김OO"></div>
+          <div><label class="f">나이</label><input type="number" id="pAge" placeholder="예: 72" min="0" max="120"></div>
+          <div><label class="f">성별</label>
+            <select id="pSex"><option value="">선택</option><option>M</option><option>F</option></select></div>
+          <div><label class="f">입원 경로</label>
+            <select id="pRoute"><option>응급실</option><option>외래</option><option>타 병원 전원</option><option>요양병원 전원</option></select></div>
+          <div><label class="f">진단명</label><input type="text" id="pDx" placeholder="예: 폐렴"></div>
+          <div><label class="f">근무조</label>
+            <select id="pShift"><option>Day</option><option>Evening</option><option>Night</option></select></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="sec-title">② 다제내성균(MDRO) 위험 사정</div>
+        <div class="sec-desc">해당 항목을 모두 체크하세요. <b style="color:var(--red)">총 3점 이상이면 선제 접촉주의</b>를 적용합니다.</div>
+        <div id="mdroList"></div>
+      </div>
+
+      <div class="card">
+        <div class="sec-title">③ 감염 증상 사정</div>
+        <div class="sec-desc">해당 증상이 있으면 체크하세요. 증상에 따라 전파경로별 격리가 결정됩니다.</div>
+        <div id="symList"></div>
+      </div>
+
+      <button class="btn-teal" onclick="judge()">판정 결과 보기 →</button>
+
+      <!-- ===== 판정 결과 ===== -->
+      <div id="result" style="margin-top:22px">
+        <div class="sec-title">④ 판정 결과</div>
+        <div class="sec-desc">질병관리청 표준예방지침 · 다제내성균 관리지침 · 결핵 진료지침 기반</div>
+        <div class="verdict" id="verdictBox">
+          <div class="lb">[판정 결과]</div>
+          <h2 id="vTitle"></h2>
+          <div class="chips" id="vChips"></div>
+          <table class="act-table" id="vTable"></table>
+          <div id="vWarn"></div>
+        </div>
+
+        <div class="card">
+          <div class="sec-title">SBAR 인수인계 문구</div>
+          <div class="sec-desc">EMR 기록이나 근무조 인계에 그대로 붙여넣을 수 있습니다.</div>
+          <div class="sbar" id="sbarText"></div>
+          <div class="row-btns">
+            <button class="btn-teal" onclick="copySbar()">📋 문구 복사</button>
+            <button class="btn-line" onclick="saveRecord()">💾 기록에 저장</button>
+            <a class="btn-line" href="ppe_quiz.html">🧤 보호구 탈의 점검하기 →</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 오늘 기록 ===== -->
+      <div class="card" id="history" style="margin-top:4px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div class="sec-title">오늘 스크리닝 기록</div>
+          <button class="btn-line" onclick="clearRecords()">기록 비우기</button>
+        </div>
+        <div class="sec-desc">이 브라우저에만 저장됩니다.</div>
+        <table class="hist">
+          <thead><tr><th>시간</th><th>환자</th><th>MDRO</th><th>판정</th><th>병실</th></tr></thead>
+          <tbody id="histBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===== 오른쪽: 실시간 점수 + 기준 ===== -->
+    <aside class="side">
+      <div class="score-box" id="scoreBox">
+        <div class="lb">MDRO 위험 점수</div>
+        <div class="num"><span id="scoreNum">0</span><small> / 8점</small></div>
+        <div class="bar"><i id="scoreBar"></i></div>
+        <div class="msg" id="scoreMsg">3점 미만 · 표준주의 유지</div>
+      </div>
+      <div class="card guide">
+        <div class="sec-title" style="font-size:15px">점수 산정 기준</div>
+        <table>
+          <tr><td>해외 의료기관 입원력 (1년 이내)</td><td style="color:var(--red)">2점</td></tr>
+          <tr><td>MDRO 보균·감염 과거력</td><td style="color:var(--red)">2점</td></tr>
+          <tr><td>타 병원·요양병원 전원</td><td>1점</td></tr>
+          <tr><td>최근 3개월 항생제 사용</td><td>1점</td></tr>
+          <tr><td>중심정맥관·유치도뇨관 등</td><td>1점</td></tr>
+          <tr><td>최근 1개월 내 중환자실 입실</td><td>1점</td></tr>
+        </table>
+        <div class="rule">⚠ 3점 이상 → 선제 접촉주의 + 1인실(또는 코호트) + 선별검사</div>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<footer><div class="wrap">본 페이지는 디지털헬스케어 수업 팀 프로젝트용 교육 자료이며, 실제 임상 판단은 기관 감염관리실 지침을 따릅니다.</div></footer>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------- 오늘 날짜 ---------- */
+const d = new Date();
+const days = ['일','월','화','수','목','금','토'];
+document.getElementById('today').textContent =
+  `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+
+/* ---------- 문항 (Gradio 코드의 MDRO_QUESTIONS와 맞춰서 수정) ---------- */
+const MDRO_QUESTIONS = [
+  {id:'m1', text:'최근 1년 이내 해외 의료기관 입원력', sub:'해외에서 수술·시술·입원한 경우', point:2, short:'해외 의료기관 입원력'},
+  {id:'m2', text:'다제내성균(MRSA·VRE·CRE 등) 보균·감염 과거력', sub:'과거 검사에서 양성으로 확인된 경우', point:2, short:'MDRO 과거력'},
+  {id:'m3', text:'타 병원 또는 요양병원에서 전원', sub:'최근 입원 중이던 기관에서 바로 옮겨온 경우', point:1, short:'타 병원 전원'},
+  {id:'m4', text:'최근 3개월 이내 항생제 사용', sub:'특히 광범위 항생제(카바페넴 등)', point:1, short:'항생제 사용력'},
+  {id:'m5', text:'침습적 기구 보유', sub:'중심정맥관, 유치도뇨관, 기관절개관 등', point:1, short:'침습적 기구(중심정맥관 등)'},
+  {id:'m6', text:'최근 1개월 이내 중환자실 입실', sub:'타 병원 중환자실 포함', point:1, short:'중환자실 입실력'}
+];
+
+const SYMPTOMS = [
+  {id:'y1', text:'2주 이상 기침 + 객혈·야간발한·체중감소', sub:'활동성 결핵 의심', type:'air', germ:'결핵'},
+  {id:'y2', text:'발열 + 전신 수포성·반점구진성 발진', sub:'수두 · 홍역 의심', type:'air', germ:'수두/홍역'},
+  {id:'y3', text:'발열 + 기침·인후통 등 호흡기 증상', sub:'인플루엔자 · 백일해 의심', type:'drop', germ:'인플루엔자'},
+  {id:'y4', text:'급성 설사 (24시간 내 3회 이상)', sub:'C. difficile · 노로바이러스 의심', type:'cont', germ:'C. difficile/노로바이러스', special:'cdiff'},
+  {id:'y5', text:'심한 가려움 + 피부 병변(굴, 구진)', sub:'옴 의심', type:'cont', germ:'옴'}
+];
+
+const ROUTE = {
+  air: {name:'공기주의', color:'#EF4444', room:'음압격리실 (문 항상 닫기)', ppe:'N95(KF94 이상) 마스크 – 입실 전 밀착 확인', move:'이동 최소화, 이동 시 환자 수술용 마스크 착용'},
+  drop:{name:'비말주의', color:'#F59E0B', room:'1인실 또는 코호트 (침상 간 1m 이상)', ppe:'수술용 마스크', move:'이동 시 환자 수술용 마스크 착용'},
+  cont:{name:'접촉주의', color:'#F97316', room:'1인실 또는 코호트', ppe:'장갑 + 가운', move:'이동 최소화, 청진기·혈압계 등 물품 전용'},
+  std: {name:'표준주의', color:'#3B82F6', room:'일반 병실', ppe:'노출 예상 시 착용', move:'제한 없음'}
+};
+
+/* ---------- 문항 그리기 ---------- */
+function renderList(){
+  document.getElementById('mdroList').innerHTML = MDRO_QUESTIONS.map(q=>`
+    <label class="q" id="L${q.id}">
+      <input type="checkbox" id="${q.id}" onchange="update()">
+      <span class="qt">${q.text}<span class="qs">${q.sub}</span></span>
+      <span class="pt ${q.point>=2?'hi':''}">${q.point}점</span>
+    </label>`).join('');
+  document.getElementById('symList').innerHTML = SYMPTOMS.map(s=>`
+    <label class="q" id="L${s.id}">
+      <input type="checkbox" id="${s.id}" onchange="update()">
+      <span class="qt">${s.text}<span class="qs">${s.sub}</span></span>
+      <span class="tag"><span class="dot" style="background:${ROUTE[s.type].color}"></span>${ROUTE[s.type].name}</span>
+    </label>`).join('');
+}
+renderList();
+
+function getScore(){
+  return MDRO_QUESTIONS.filter(q=>document.getElementById(q.id).checked).reduce((a,q)=>a+q.point,0);
+}
+
+/* ---------- 실시간 점수 ---------- */
+function update(){
+  [...MDRO_QUESTIONS,...SYMPTOMS].forEach(q=>{
+    document.getElementById('L'+q.id).classList.toggle('checked', document.getElementById(q.id).checked);
+  });
+  const s = getScore();
+  document.getElementById('scoreNum').textContent = s;
+  document.getElementById('scoreBar').style.width = (s/8*100)+'%';
+  const box = document.getElementById('scoreBox');
+  if(s>=3){
+    box.classList.add('alert');
+    document.getElementById('scoreMsg').textContent = '⚠ 3점 이상 · 선제 접촉주의 대상';
+  }else{
+    box.classList.remove('alert');
+    document.getElementById('scoreMsg').textContent = '3점 미만 · 표준주의 유지';
+  }
+  const anyM = MDRO_QUESTIONS.some(q=>document.getElementById(q.id).checked);
+  const anyS = SYMPTOMS.some(q=>document.getElementById(q.id).checked);
+  setStep(anyS?3:(anyM?2:1));
+}
+function setStep(n){ for(let i=1;i<=4;i++) document.getElementById('s'+i).classList.toggle('on', i<=n); }
+
+/* ---------- 판정 ---------- */
+let last = null;
+function judge(){
+  const score = getScore();
+  const mItems = MDRO_QUESTIONS.filter(q=>document.getElementById(q.id).checked);
+  const sItems = SYMPTOMS.filter(q=>document.getElementById(q.id).checked);
+  const types = new Set(sItems.map(s=>s.type));
+  if(score>=3) types.add('cont');           // 선제 접촉주의
+  const order = ['air','drop','cont'];
+  const applied = order.filter(t=>types.has(t));
+  if(applied.length===0) applied.push('std');
+
+  const cdiff = sItems.some(s=>s.special==='cdiff');
+  const preCont = score>=3;
+  const danger = applied.includes('air') || preCont;
+
+  // 제목
+  let names = applied.map(t=>ROUTE[t].name);
+  if(preCont && !sItems.some(s=>s.type==='cont')) names = names.map(n=>n==='접촉주의'?'선제 접촉주의':n);
+  const title = names.join(' + ');
+
+  // 조치 (가장 엄격한 경로 기준 병실)
+  const main = applied[0];
+  const ppe = applied.map(t=>ROUTE[t].ppe).join(' / ');
+  const tests = [];
+  if(preCont) tests.push('MDRO 선별검사 (CRE·VRE 직장도말, MRSA 비강도말)');
+  if(sItems.find(s=>s.id==='y1')) tests.push('객담 AFB 도말·배양, 결핵 PCR, 흉부 X-ray');
+  if(sItems.find(s=>s.id==='y3')) tests.push('호흡기 바이러스 검사 (인플루엔자 신속항원 등)');
+  if(cdiff) tests.push('C. difficile 독소 검사 / 노로바이러스 검사');
+  if(tests.length===0) tests.push('추가 선별검사 없음');
+
+  // 화면 출력
+  const box = document.getElementById('verdictBox');
+  box.classList.toggle('danger', danger);
+  document.getElementById('vTitle').textContent = title;
+  document.getElementById('vChips').innerHTML =
+    `<span class="chip ${score>=3?'red':''}">MDRO ${score}점</span>` +
+    sItems.map(s=>`<span class="chip ${s.type==='air'?'red':''}">${s.germ} 의심</span>`).join('');
+  document.getElementById('vTable').innerHTML = `
+    <tr><th>병실</th><td>${ROUTE[main].room}</td></tr>
+    <tr><th>보호구</th><td>${ppe}</td></tr>
+    <tr><th>환자 이동</th><td>${ROUTE[main].move}</td></tr>
+    <tr><th>검사</th><td>${tests.join('<br>')}</td></tr>`;
+  let warn = '';
+  if(cdiff) warn += `<div class="warn">⚠ C. difficile · 노로바이러스 의심: 알코올 손소독제는 아포에 효과가 없으므로 <u>반드시 물과 비누로 손위생</u>하고, 환경은 염소계 소독제로 소독합니다.</div>`;
+  if(applied.includes('air')) warn += `<div class="warn">⚠ 공기주의: N95 마스크는 <u>병실 밖에서</u> 벗고, 음압격리실이 없으면 즉시 감염관리실에 보고합니다.</div>`;
+  if(preCont) warn += `<div class="warn">⚠ 선제 접촉주의: 선별검사 결과가 음성으로 확인될 때까지 격리를 유지합니다.</div>`;
+  document.getElementById('vWarn').innerHTML = warn;
+
+  // SBAR
+  const p = {
+    name: document.getElementById('pName').value || '환자',
+    age: document.getElementById('pAge').value,
+    sex: document.getElementById('pSex').value,
+    route: document.getElementById('pRoute').value,
+    dx: document.getElementById('pDx').value,
+    shift: document.getElementById('pShift').value
+  };
+  const who = `${p.name}${p.age||p.sex?` (${[p.age,p.sex].filter(Boolean).join('/')})`:''}`;
+  const mText = mItems.length ? mItems.map(q=>`${q.short} ${q.point}점`).join(' + ') + ` = 총 ${score}점` : 'MDRO 위험요인 없음 (0점)';
+  const sText = sItems.length ? sItems.map(s=>s.text).join(', ') : '특이 감염 증상 없음';
+  const sbar =
+`[S] 신규 입원 환자 ${who}, ${p.route} 경로로 입원${p.dx?` (진단: ${p.dx})`:''}. 감염 스크리닝 결과 ${title} 판정.
+[B] MDRO 위험: ${mText}
+    증상: ${sText}
+[A] ${sItems.length? sItems.map(s=>s.germ).join(', ')+' 의심. ':''}${preCont?'MDRO 고위험(3점 이상)으로 선제 격리 필요. ':''}${applied[0]==='std'?'격리 필요 없음.':''}
+[R] ${ROUTE[main].room} 배정, 보호구 ${ppe} 적용. ${tests[0]!=='추가 선별검사 없음'?tests.join(', ')+' 시행 및 결과 확인 필요.':''}${cdiff?' 손위생은 물과 비누로 시행.':''}`;
+  document.getElementById('sbarText').textContent = sbar;
+
+  last = {time: new Date().toTimeString().slice(0,5), name: who, score, title, room: ROUTE[main].room.split(' (')[0], danger};
+  document.getElementById('result').style.display = 'block';
+  setStep(4);
+  document.getElementById('result').scrollIntoView({behavior:'smooth'});
+}
+
+/* ---------- 복사 ---------- */
+function copySbar(){
+  const t = document.getElementById('sbarText').textContent;
+  if(navigator.clipboard){ navigator.clipboard.writeText(t).then(()=>toast('인계 문구를 복사했어요')).catch(fallback); }
+  else fallback();
+  function fallback(){
+    const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy'); ta.remove(); toast('인계 문구를 복사했어요');
+  }
+}
+function toast(m){ const e=document.getElementById('toast'); e.textContent=m; e.classList.add('show'); setTimeout(()=>e.classList.remove('show'),1800); }
+
+/* ---------- 기록 ---------- */
+const KEY = 'ig_screening_records';
+function loadRecords(){ try{ return JSON.parse(localStorage.getItem(KEY)) || []; }catch(e){ return memRecords; } }
+let memRecords = [];
+function storeRecords(r){ memRecords = r; try{ localStorage.setItem(KEY, JSON.stringify(r)); }catch(e){} }
+function saveRecord(){ if(!last) return; const r = loadRecords(); r.unshift(last); storeRecords(r); renderRecords(); toast('기록에 저장했어요'); }
+function clearRecords(){ storeRecords([]); renderRecords(); }
+function renderRecords(){
+  const r = loadRecords();
+  document.getElementById('histBody').innerHTML = r.length ? r.map(x=>`
+    <tr><td>${x.time}</td><td>${x.name}</td>
+    <td class="${x.score>=3?'red':''}">${x.score}점</td>
+    <td class="${x.danger?'red':''}">${x.title}</td><td>${x.room}</td></tr>`).join('')
+    : '<tr><td colspan="5" class="empty">아직 저장된 기록이 없어요.</td></tr>';
+}
+renderRecords();
+
+/* ---------- 초기화 ---------- */
+function resetAll(){
+  document.querySelectorAll('input').forEach(i=>{ if(i.type==='checkbox') i.checked=false; else i.value=''; });
+  document.querySelectorAll('select').forEach(s=>s.selectedIndex=0);
+  document.getElementById('result').style.display='none';
+  last=null; update(); window.scrollTo({top:0,behavior:'smooth'});
+}
+</script>
+</body>
+</html>
